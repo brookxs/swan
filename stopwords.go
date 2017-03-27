@@ -19,9 +19,19 @@ var (
 		// NB is covered by macrolanguage NO, so don't use.
 		"nb": true,
 
-		"zh": true, // Needs a good segmenter
+		//"zh": true, // Needs a good segmenter
 	}
+	langStopword = map[string]StopWord{}
 )
+
+type StopWord interface {
+	Match(text string) bool
+	Split(text string) []string
+}
+
+func RegisterLangStopWord(lang string, val StopWord) {
+	langStopword[lang] = val
+}
 
 func init() {
 	for k := range unsupportedLangs {
@@ -58,6 +68,13 @@ func getArticleTextChunk(a *Article) string {
 }
 
 func splitText(t string) (ws []string) {
+
+	for _, st := range langStopword {
+		if st.Match(t) {
+			return st.Split(t)
+		}
+	}
+
 	start := 0
 	inWord := false
 
@@ -89,9 +106,18 @@ func splitText(t string) (ws []string) {
 }
 
 func detectLang(a *Article) string {
+
+	text := getArticleTextChunk(a)
+
+	for lang, st := range langStopword {
+		if st.Match(text) {
+			return lang
+		}
+	}
+
 	score := uint(0)
 	detected := "en"
-	ws := splitText(getArticleTextChunk(a))
+	ws := splitText(text)
 
 	for lang := range stopwords {
 		count := stopwordCountWs(lang, ws)
